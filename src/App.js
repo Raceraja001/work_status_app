@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import './App.css';
 
 // Replace this with your NEW Google Apps Script Web App URL after redeployment
-const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwiZodiRYKxqlBGTKxgpVb3Upf-lD9XNeNxyRygM916MmoVedAYoqPzHhsXvQejOWAbbA/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby7DNtVHS4FcuktaaWxPlc8HUbX4X7WldtFqpjeYD6l__Ikxq3QCe1zOJ1B4nmyX3XrWg/exec';
 
 // Default test values function
 const getDefaultFormData = () => ({
@@ -50,6 +50,43 @@ const App = () => {
 
   const [statusMessage, setStatusMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [validationErrors, setValidationErrors] = useState({});
+
+  // Calculate form completion percentage
+  const getFormCompletionPercentage = () => {
+    const totalFields = Object.keys(formData).length;
+    const filledFields = Object.values(formData).filter(value => value.trim() !== '').length;
+    return Math.round((filledFields / totalFields) * 100);
+  };
+
+  // Validate form fields
+  const validateForm = () => {
+    const errors = {};
+    
+    // Required field validation
+    Object.keys(formData).forEach(key => {
+      if (!formData[key].trim()) {
+        errors[key] = `${key} is required`;
+      }
+    });
+
+    // URL validation for Zoho link
+    if (formData['ZOHO TASK LINK'] && !formData['ZOHO TASK LINK'].startsWith('http')) {
+      errors['ZOHO TASK LINK'] = 'Please enter a valid URL';
+    }
+
+    // Time validation
+    if (formData['START TIME'] && formData['END TIME']) {
+      const start = new Date(`2000-01-01 ${formData['START TIME']}`);
+      const end = new Date(`2000-01-01 ${formData['END TIME']}`);
+      if (end <= start) {
+        errors['END TIME'] = 'End time must be after start time';
+      }
+    }
+
+    setValidationErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
 
   // Load saved draft on component mount
   useEffect(() => {
@@ -74,9 +111,51 @@ const App = () => {
     return () => clearTimeout(timeoutId);
   }, [formData]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        switch (e.key) {
+          case 's':
+            e.preventDefault();
+            if (!isSubmitting) {
+              document.querySelector('form').dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+            }
+            break;
+          case 'r':
+            e.preventDefault();
+            clearValues();
+            break;
+          case 't':
+            e.preventDefault();
+            loadTestValues();
+            break;
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isSubmitting]);
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     let updatedData = { ...formData, [name]: value };
+
+    // Smart auto-fill logic
+    if (name === 'TASK TYPE') {
+      // Auto-suggest module based on task type
+      if (value === 'Development') updatedData['MODULE'] = 'Frontend';
+      if (value === 'Testing') updatedData['MODULE'] = 'QA';
+      if (value === 'Bug Fix') updatedData['STATUS'] = 'In Progress';
+    }
+
+    if (name === 'REQ TYPE') {
+      // Auto-suggest type based on request type
+      if (value === 'Bug Report') updatedData['TYPE'] = 'Bug Fix';
+      if (value === 'Feature Request') updatedData['TYPE'] = 'New Feature';
+      if (value === 'Enhancement') updatedData['TYPE'] = 'Enhancement';
+    }
 
     // Auto-calculate time taken when start and end times are provided
     if (name === 'START TIME' || name === 'END TIME') {
@@ -91,8 +170,17 @@ const App = () => {
         if (diffMs > 0) {
           const hours = Math.floor(diffMs / (1000 * 60 * 60));
           const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-          updatedData['TIME TAKEN'] = `${hours}.${minutes < 30 ? '0' : '5'} hours`;
+          updatedData['TIME TAKEN'] = `${hours}h ${minutes}m`;
         }
+      }
+    }
+
+    // Auto-generate task title if client and task type are filled
+    if ((name === 'CLIENT NAME' || name === 'TASK TYPE') && !formData['ZOHO TASK TITLE']) {
+      const client = name === 'CLIENT NAME' ? value : formData['CLIENT NAME'];
+      const taskType = name === 'TASK TYPE' ? value : formData['TASK TYPE'];
+      if (client && taskType) {
+        updatedData['ZOHO TASK TITLE'] = `${taskType} for ${client}`;
       }
     }
 
@@ -127,7 +215,40 @@ const App = () => {
       'FIX DESCRIPTION': '',
     });
     localStorage.removeItem('workStatusDraft');
+    setValidationErrors({});
     setStatusMessage('🗑️ Form cleared');
+  };
+
+  // Quick templates for common tasks
+  const loadTemplate = (templateType) => {
+    const templates = {
+      'bug-fix': {
+        'TASK TYPE': 'Bug Fix',
+        'REQ TYPE': 'Bug Report',
+        'STATUS': 'In Progress',
+        'MODULE': 'Frontend',
+        'TYPE': 'Bug Fix',
+        'TASK DESCRIPTION': 'Fixed issue with...',
+      },
+      'feature': {
+        'TASK TYPE': 'Development',
+        'REQ TYPE': 'Feature Request',
+        'STATUS': 'In Progress',
+        'MODULE': 'Frontend',
+        'TYPE': 'New Feature',
+        'TASK DESCRIPTION': 'Implemented new feature for...',
+      },
+      'meeting': {
+        'TASK TYPE': 'Meeting',
+        'REQ TYPE': 'Support',
+        'STATUS': 'Completed',
+        'TIME TAKEN': '1h 0m',
+        'TASK DESCRIPTION': 'Attended meeting regarding...',
+      }
+    };
+
+    setFormData(prev => ({ ...prev, ...templates[templateType] }));
+    setStatusMessage(`📋 ${templateType.replace('-', ' ')} template loaded`);
   };
 
   const exportFormData = () => {
@@ -160,8 +281,15 @@ const App = () => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    
+    // Validate form before submission
+    if (!validateForm()) {
+      setStatusMessage('❌ Please fix the errors below');
+      return;
+    }
+
     setIsSubmitting(true);
-    setStatusMessage('Submitting...');
+    setStatusMessage('⏳ Submitting...');
 
     // Convert form data to URL parameters (replacing spaces with underscores for Apps Script)
     const params = new URLSearchParams();
@@ -260,116 +388,192 @@ const App = () => {
     const isTextarea = ['TASK DESCRIPTION', 'NARRATION', 'FIX DESCRIPTION'].includes(key);
     const isTime = ['START TIME', 'END TIME'].includes(key);
     const isUrl = key === 'ZOHO TASK LINK';
+    const hasError = validationErrors[key];
+
+    const fieldStyle = {
+      borderColor: hasError ? '#dc3545' : formData[key] ? '#28a745' : '#ddd'
+    };
 
     if (isDropdown) {
       return (
-        <select
-          name={key}
-          value={formData[key]}
-          onChange={handleChange}
-          required
-        >
-          <option value="">Select {key}</option>
-          {dropdownOptions[key].map(option => (
-            <option key={option} value={option}>{option}</option>
-          ))}
-        </select>
+        <>
+          <select
+            name={key}
+            value={formData[key]}
+            onChange={handleChange}
+            style={fieldStyle}
+            required
+          >
+            <option value="">Select {key}</option>
+            {dropdownOptions[key].map(option => (
+              <option key={option} value={option}>{option}</option>
+            ))}
+          </select>
+          {hasError && <span style={{color: '#dc3545', fontSize: '0.8rem'}}>{hasError}</span>}
+        </>
       );
     }
 
     if (isTextarea) {
       return (
-        <textarea
-          name={key}
-          value={formData[key]}
-          onChange={handleChange}
-          rows={3}
-          placeholder={`Enter ${key.toLowerCase()}`}
-          required
-        />
+        <>
+          <textarea
+            name={key}
+            value={formData[key]}
+            onChange={handleChange}
+            rows={3}
+            style={fieldStyle}
+            placeholder={`Enter ${key.toLowerCase()}`}
+            required
+          />
+          {hasError && <span style={{color: '#dc3545', fontSize: '0.8rem'}}>{hasError}</span>}
+        </>
       );
     }
 
     return (
-      <input
-        type={key === 'DATE' ? 'date' : isTime ? 'time' : isUrl ? 'url' : 'text'}
-        name={key}
-        value={formData[key]}
-        onChange={handleChange}
-        placeholder={isTime ? '' : isUrl ? 'https://projects.zoho.com/...' : `Enter ${key.toLowerCase()}`}
-        required
-      />
+      <>
+        <input
+          type={key === 'DATE' ? 'date' : isTime ? 'time' : isUrl ? 'url' : 'text'}
+          name={key}
+          value={formData[key]}
+          onChange={handleChange}
+          style={fieldStyle}
+          placeholder={isTime ? '' : isUrl ? 'https://projects.zoho.com/...' : `Enter ${key.toLowerCase()}`}
+          required
+        />
+        {hasError && <span style={{color: '#dc3545', fontSize: '0.8rem'}}>{hasError}</span>}
+      </>
     );
   };
 
-  return (
-    <div className="container">
-      <h1>Work Status Update</h1>
-      <form onSubmit={handleSubmit}>
-        {Object.keys(formData).map((key) => (
-          <div className="form-group" key={key}>
+  // Organize fields into logical sections
+  const formSections = {
+    'Basic Information': ['DATE', 'TIME SHEET STATUS', 'ASSIGNED TO'],
+    'Task Details': ['TASK TYPE', 'REQ TYPE', 'CLIENT NAME', 'ZOHO TASK TITLE', 'ZOHO TASK LINK'],
+    'Task Description': ['TASK DESCRIPTION'],
+    'Status & Time': ['STATUS', 'START TIME', 'END TIME', 'TIME TAKEN'],
+    'Classification': ['MODULE', 'SUB MODULE', 'TYPE'],
+    'Additional Notes': ['NARRATION', 'FIX DESCRIPTION']
+  };
+
+  const renderFormSection = (sectionTitle, fields) => (
+    <div key={sectionTitle} className="form-section">
+      <h3>{sectionTitle}</h3>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '15px' }}>
+        {fields.map((key) => (
+          <div className={`form-group ${['TASK DESCRIPTION', 'NARRATION', 'FIX DESCRIPTION'].includes(key) ? 'full-width' : ''}`} key={key}>
             <label>
               {key} <span style={{ color: 'red' }}>*</span>
               {key === 'ZOHO TASK LINK' && (
-                <span style={{ color: '#666', fontSize: '0.9em', fontWeight: 'normal' }}>
-                  {' '}(This will be linked to the task title)
+                <span style={{ color: '#666', fontSize: '0.8em', fontWeight: 'normal' }}>
+                  {' '}(Links to task title)
                 </span>
               )}
             </label>
             {renderFormField(key)}
           </div>
         ))}
-        <div style={{ display: 'flex', gap: '10px', marginTop: '20px', flexWrap: 'wrap' }}>
-          <button type="submit" disabled={isSubmitting} style={{
-            backgroundColor: isSubmitting ? '#ccc' : '#4CAF50',
-            color: 'white',
-            padding: '10px 20px',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: isSubmitting ? 'not-allowed' : 'pointer'
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="container">
+      <h1>Work Status Update</h1>
+      
+      {/* Progress Bar */}
+      <div style={{ marginBottom: '20px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '5px' }}>
+          <span style={{ fontSize: '0.9rem', color: '#666' }}>Form Completion</span>
+          <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#007bff' }}>
+            {getFormCompletionPercentage()}%
+          </span>
+        </div>
+        <div style={{ 
+          width: '100%', 
+          height: '8px', 
+          backgroundColor: '#e9ecef', 
+          borderRadius: '4px',
+          overflow: 'hidden'
+        }}>
+          <div style={{ 
+            width: `${getFormCompletionPercentage()}%`, 
+            height: '100%', 
+            backgroundColor: '#007bff',
+            transition: 'width 0.3s ease'
+          }}></div>
+        </div>
+      </div>
+
+      {/* Quick Templates */}
+      <div style={{ 
+        marginBottom: '20px', 
+        padding: '15px', 
+        backgroundColor: '#f8f9fa', 
+        borderRadius: '8px',
+        border: '1px solid #dee2e6'
+      }}>
+        <h4 style={{ margin: '0 0 10px 0', color: '#495057', fontSize: '1rem' }}>Quick Templates</h4>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button type="button" onClick={() => loadTemplate('bug-fix')} style={{
+            padding: '6px 12px', fontSize: '0.8rem', backgroundColor: '#dc3545', color: 'white',
+            border: 'none', borderRadius: '4px', cursor: 'pointer'
           }}>
-            {isSubmitting ? 'Submitting...' : 'Submit'}
+            🐛 Bug Fix
+          </button>
+          <button type="button" onClick={() => loadTemplate('feature')} style={{
+            padding: '6px 12px', fontSize: '0.8rem', backgroundColor: '#28a745', color: 'white',
+            border: 'none', borderRadius: '4px', cursor: 'pointer'
+          }}>
+            ✨ New Feature
+          </button>
+          <button type="button" onClick={() => loadTemplate('meeting')} style={{
+            padding: '6px 12px', fontSize: '0.8rem', backgroundColor: '#6f42c1', color: 'white',
+            border: 'none', borderRadius: '4px', cursor: 'pointer'
+          }}>
+            🤝 Meeting
+          </button>
+        </div>
+      </div>
+
+      <form onSubmit={handleSubmit}>
+        {Object.entries(formSections).map(([sectionTitle, fields]) => 
+          renderFormSection(sectionTitle, fields)
+        )}
+        <div className="button-container">
+          <button type="submit" disabled={isSubmitting} style={{
+            backgroundColor: isSubmitting ? '#ccc' : '#4CAF50'
+          }}>
+            {isSubmitting ? '⏳ Submitting...' : '✅ Submit (Ctrl+S)'}
           </button>
           <button type="button" onClick={loadTestValues} disabled={isSubmitting} style={{
-            backgroundColor: '#2196F3',
-            color: 'white',
-            padding: '10px 20px',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: isSubmitting ? 'not-allowed' : 'pointer'
+            backgroundColor: '#2196F3'
           }}>
-            📝 Load Test Values
+            📝 Load Test Values (Ctrl+T)
           </button>
           <button type="button" onClick={clearValues} disabled={isSubmitting} style={{
-            backgroundColor: '#f44336',
-            color: 'white',
-            padding: '10px 20px',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: isSubmitting ? 'not-allowed' : 'pointer'
+            backgroundColor: '#f44336'
           }}>
-            🗑️ Clear Values
+            🗑️ Clear Values (Ctrl+R)
           </button>
           <button type="button" onClick={exportFormData} disabled={isSubmitting} style={{
-            backgroundColor: '#17a2b8',
-            color: 'white',
-            padding: '10px 20px',
-            border: 'none',
-            borderRadius: '4px',
-            cursor: isSubmitting ? 'not-allowed' : 'pointer'
+            backgroundColor: '#17a2b8'
           }}>
-            Export Data
+            💾 Export Data
           </button>
           <label style={{
             backgroundColor: '#6c757d',
             color: 'white',
-            padding: '10px 20px',
+            padding: '10px 16px',
             border: 'none',
             borderRadius: '4px',
             cursor: isSubmitting ? 'not-allowed' : 'pointer',
-            display: 'inline-block'
+            display: 'inline-block',
+            fontSize: '0.9rem',
+            fontWeight: '600'
           }}>
-            Import Data
+            📁 Import Data
             <input
               type="file"
               accept=".json"
