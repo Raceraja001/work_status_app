@@ -1,8 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import './App.css';
+import Navigation from './Navigation';
+import DataViewer from './DataViewer';
+import MasterDataManager from './MasterDataManager';
+import Reports from './Reports';
+import Settings from './Settings';
 
-// Replace this with your NEW Google Apps Script Web App URL after redeployment
+// Backend URLs
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby7DNtVHS4FcuktaaWxPlc8HUbX4X7WldtFqpjeYD6l__Ikxq3QCe1zOJ1B4nmyX3XrWg/exec';
+const MYSQL_API_URL = 'http://localhost:3002/api/work-status';
 
 // Default test values function
 const getDefaultFormData = () => ({
@@ -51,6 +57,15 @@ const App = () => {
   const [statusMessage, setStatusMessage] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [validationErrors, setValidationErrors] = useState({});
+  const [selectedBackend, setSelectedBackend] = useState('sheets'); // 'sheets' or 'mysql'
+  const [mysqlStatus, setMysqlStatus] = useState('unknown'); // 'connected', 'disconnected', 'unknown'
+  const [activeSection, setActiveSection] = useState('form'); // 'form', 'data-viewer', 'master-data', 'reports', 'settings'
+  const [masterData, setMasterData] = useState({
+    dropdowns: {},
+    clients: [],
+    employees: []
+  });
+  const [loadingMasters, setLoadingMasters] = useState(false);
 
   // Calculate form completion percentage
   const getFormCompletionPercentage = () => {
@@ -88,7 +103,7 @@ const App = () => {
     return Object.keys(errors).length === 0;
   };
 
-  // Load saved draft on component mount
+  // Load saved draft on component mount and check MySQL status
   useEffect(() => {
     const savedDraft = localStorage.getItem('workStatusDraft');
     if (savedDraft) {
@@ -100,7 +115,57 @@ const App = () => {
         console.error('Error loading draft:', error);
       }
     }
+
+    // Check MySQL backend status
+    checkMysqlStatus();
   }, []);
+
+  const checkMysqlStatus = async () => {
+    try {
+      const response = await fetch('http://localhost:3002/health');
+      if (response.ok) {
+        setMysqlStatus('connected');
+        // Load master data when MySQL is connected
+        if (selectedBackend === 'mysql') {
+          loadMasterData();
+        }
+      } else {
+        setMysqlStatus('disconnected');
+      }
+    } catch (error) {
+      setMysqlStatus('disconnected');
+    }
+  };
+
+  const loadMasterData = async () => {
+    if (selectedBackend !== 'mysql') return;
+    
+    setLoadingMasters(true);
+    try {
+      // Load all master data in parallel
+      const [dropdownsRes, clientsRes, employeesRes] = await Promise.all([
+        fetch('http://localhost:3002/api/masters/dropdowns'),
+        fetch('http://localhost:3002/api/masters/clients'),
+        fetch('http://localhost:3002/api/masters/employees')
+      ]);
+
+      const [dropdownsData, clientsData, employeesData] = await Promise.all([
+        dropdownsRes.json(),
+        clientsRes.json(),
+        employeesRes.json()
+      ]);
+
+      setMasterData({
+        dropdowns: dropdownsData.success ? dropdownsData.data : {},
+        clients: clientsData.success ? clientsData.data : [],
+        employees: employeesData.success ? employeesData.data : []
+      });
+    } catch (error) {
+      console.error('Error loading master data:', error);
+    } finally {
+      setLoadingMasters(false);
+    }
+  };
 
   // Save draft to localStorage whenever form data changes
   useEffect(() => {
@@ -279,18 +344,8 @@ const App = () => {
     }
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    
-    // Validate form before submission
-    if (!validateForm()) {
-      setStatusMessage('❌ Please fix the errors below');
-      return;
-    }
-
-    setIsSubmitting(true);
-    setStatusMessage('⏳ Submitting...');
-
+  // Submit to Google Sheets
+  const submitToSheets = () => {
     // Convert form data to URL parameters (replacing spaces with underscores for Apps Script)
     const params = new URLSearchParams();
     Object.keys(formData).forEach(key => {
@@ -312,34 +367,9 @@ const App = () => {
     window[callbackName] = (result) => {
       if (result.success) {
         setStatusMessage('✅ Form submitted successfully! Data added to Google Sheets.');
-        // Clear localStorage draft
-        localStorage.removeItem('workStatusDraft');
-        // Clear the form after successful submission
-        setFormData({
-          DATE: new Date().toISOString().split('T')[0],
-          'TIME SHEET STATUS': '',
-          'TASK TYPE': '',
-          'REQ TYPE': '',
-          'CLIENT NAME': '',
-          'ZOHO TASK TITLE': '',
-          'ZOHO TASK LINK': '',
-          'TASK DESCRIPTION': '',
-          STATUS: '',
-          'TIME TAKEN': '',
-          MODULE: '',
-          'SUB MODULE': '',
-          TYPE: '',
-          'ASSIGNED TO': '',
-          'START TIME': '',
-          'END TIME': '',
-          NARRATION: '',
-          'FIX DESCRIPTION': '',
-        });
-
-        // Auto-hide success message after 5 seconds
-        setTimeout(() => setStatusMessage(''), 5000);
+        clearFormAfterSubmission();
       } else {
-        setStatusMessage('❌ Error submitting form: ' + (result.error || 'Unknown error occurred'));
+        setStatusMessage('❌ Error submitting to Google Sheets: ' + (result.error || 'Unknown error occurred'));
       }
 
       // Cleanup
@@ -357,24 +387,88 @@ const App = () => {
       setIsSubmitting(false);
     };
 
-    // Add timeout for debugging
-    setTimeout(() => {
-      if (window[callbackName]) {
-        console.error('Request timed out after 10 seconds');
-        setStatusMessage('❌ Request timed out. Please check your Apps Script deployment.');
-        document.head.removeChild(script);
-        delete window[callbackName];
-        setIsSubmitting(false);
-      }
-    }, 10000);
-
-    console.log('Making request to:', url);
+    console.log('Making request to Google Sheets:', url);
     script.src = url;
     document.head.appendChild(script);
   };
 
-  // Define dropdown options for better UX
-  const dropdownOptions = {
+  // Submit to MySQL
+  const submitToMySQL = async () => {
+    try {
+      const response = await fetch(MYSQL_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(formData)
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setStatusMessage('✅ Form submitted successfully! Data saved to MySQL database.');
+        clearFormAfterSubmission();
+      } else {
+        setStatusMessage('❌ Error submitting to MySQL: ' + (result.error || 'Unknown error occurred'));
+      }
+    } catch (error) {
+      console.error('MySQL submission error:', error);
+      setStatusMessage('❌ Network error connecting to MySQL: ' + error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Clear form after successful submission
+  const clearFormAfterSubmission = () => {
+    localStorage.removeItem('workStatusDraft');
+    setFormData({
+      DATE: new Date().toISOString().split('T')[0],
+      'TIME SHEET STATUS': '',
+      'TASK TYPE': '',
+      'REQ TYPE': '',
+      'CLIENT NAME': '',
+      'ZOHO TASK TITLE': '',
+      'ZOHO TASK LINK': '',
+      'TASK DESCRIPTION': '',
+      STATUS: '',
+      'TIME TAKEN': '',
+      MODULE: '',
+      'SUB MODULE': '',
+      TYPE: '',
+      'ASSIGNED TO': '',
+      'START TIME': '',
+      'END TIME': '',
+      NARRATION: '',
+      'FIX DESCRIPTION': '',
+    });
+    
+    // Auto-hide success message after 5 seconds
+    setTimeout(() => setStatusMessage(''), 5000);
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    
+    // Validate form before submission
+    if (!validateForm()) {
+      setStatusMessage('❌ Please fix the errors below');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setStatusMessage('⏳ Submitting...');
+
+    // Submit to selected backend
+    if (selectedBackend === 'sheets') {
+      submitToSheets();
+    } else {
+      submitToMySQL();
+    }
+  };
+
+  // Define dropdown options for better UX (fallback for Google Sheets)
+  const staticDropdownOptions = {
     'TIME SHEET STATUS': ['Pending', 'Completed', 'In Review', 'Approved'],
     'TASK TYPE': ['Development', 'Testing', 'Bug Fix', 'Documentation', 'Meeting', 'Research'],
     'REQ TYPE': ['Feature Request', 'Bug Report', 'Enhancement', 'Maintenance', 'Support'],
@@ -383,8 +477,35 @@ const App = () => {
     TYPE: ['Enhancement', 'Bug Fix', 'New Feature', 'Refactoring', 'Documentation']
   };
 
+  // Get dropdown options based on selected backend
+  const getDropdownOptions = (fieldKey) => {
+    if (selectedBackend === 'mysql' && masterData.dropdowns[fieldKey]) {
+      return masterData.dropdowns[fieldKey];
+    }
+    return staticDropdownOptions[fieldKey] || [];
+  };
+
+  // Get client options
+  const getClientOptions = () => {
+    if (selectedBackend === 'mysql') {
+      return masterData.clients;
+    }
+    return []; // For Google Sheets, use text input
+  };
+
+  // Get employee options
+  const getEmployeeOptions = () => {
+    if (selectedBackend === 'mysql') {
+      return masterData.employees;
+    }
+    return []; // For Google Sheets, use text input
+  };
+
   const renderFormField = (key) => {
-    const isDropdown = dropdownOptions[key];
+    const dropdownOptions = getDropdownOptions(key);
+    const isDropdown = dropdownOptions.length > 0;
+    const isClientField = key === 'CLIENT NAME';
+    const isEmployeeField = key === 'ASSIGNED TO';
     const isTextarea = ['TASK DESCRIPTION', 'NARRATION', 'FIX DESCRIPTION'].includes(key);
     const isTime = ['START TIME', 'END TIME'].includes(key);
     const isUrl = key === 'ZOHO TASK LINK';
@@ -394,6 +515,55 @@ const App = () => {
       borderColor: hasError ? '#dc3545' : formData[key] ? '#28a745' : '#ddd'
     };
 
+    // Client dropdown for MySQL backend
+    if (isClientField && selectedBackend === 'mysql') {
+      const clientOptions = getClientOptions();
+      return (
+        <>
+          <select
+            name={key}
+            value={formData[key]}
+            onChange={handleChange}
+            style={fieldStyle}
+            required
+          >
+            <option value="">Select Client</option>
+            {clientOptions.map(client => (
+              <option key={client.id} value={client.client_name}>
+                {client.client_name} ({client.client_code})
+              </option>
+            ))}
+          </select>
+          {hasError && <span style={{color: '#dc3545', fontSize: '0.8rem'}}>{hasError}</span>}
+        </>
+      );
+    }
+
+    // Employee dropdown for MySQL backend
+    if (isEmployeeField && selectedBackend === 'mysql') {
+      const employeeOptions = getEmployeeOptions();
+      return (
+        <>
+          <select
+            name={key}
+            value={formData[key]}
+            onChange={handleChange}
+            style={fieldStyle}
+            required
+          >
+            <option value="">Select Employee</option>
+            {employeeOptions.map(employee => (
+              <option key={employee.id} value={employee.employee_name}>
+                {employee.employee_name} - {employee.designation}
+              </option>
+            ))}
+          </select>
+          {hasError && <span style={{color: '#dc3545', fontSize: '0.8rem'}}>{hasError}</span>}
+        </>
+      );
+    }
+
+    // Master data dropdowns
     if (isDropdown) {
       return (
         <>
@@ -405,9 +575,17 @@ const App = () => {
             required
           >
             <option value="">Select {key}</option>
-            {dropdownOptions[key].map(option => (
-              <option key={option} value={option}>{option}</option>
-            ))}
+            {dropdownOptions.map(option => {
+              const value = typeof option === 'string' ? option : option.value;
+              const displayText = typeof option === 'string' ? option : option.display_text;
+              const colorCode = typeof option === 'object' ? option.color_code : null;
+              
+              return (
+                <option key={value} value={value} style={{ color: colorCode }}>
+                  {displayText}
+                </option>
+              );
+            })}
           </select>
           {hasError && <span style={{color: '#dc3545', fontSize: '0.8rem'}}>{hasError}</span>}
         </>
@@ -478,9 +656,12 @@ const App = () => {
     </div>
   );
 
-  return (
-    <div className="container">
-      <h1>Work Status Update</h1>
+  const renderActiveSection = () => {
+    switch (activeSection) {
+      case 'form':
+        return (
+          <div>
+            <h1>Work Status Update</h1>
       
       {/* Progress Bar */}
       <div style={{ marginBottom: '20px' }}>
@@ -503,6 +684,66 @@ const App = () => {
             backgroundColor: '#007bff',
             transition: 'width 0.3s ease'
           }}></div>
+        </div>
+      </div>
+
+      {/* Backend Selection */}
+      <div style={{ 
+        marginBottom: '20px', 
+        padding: '15px', 
+        backgroundColor: '#e3f2fd', 
+        borderRadius: '8px',
+        border: '1px solid #2196f3'
+      }}>
+        <h4 style={{ margin: '0 0 10px 0', color: '#1976d2', fontSize: '1rem' }}>Select Backend</h4>
+        <div style={{ display: 'flex', gap: '15px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+            <input
+              type="radio"
+              name="backend"
+              value="sheets"
+              checked={selectedBackend === 'sheets'}
+              onChange={(e) => setSelectedBackend(e.target.value)}
+            />
+            <span>📊 Google Sheets</span>
+          </label>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '5px', cursor: 'pointer' }}>
+            <input
+              type="radio"
+              name="backend"
+              value="mysql"
+              checked={selectedBackend === 'mysql'}
+              onChange={(e) => {
+                setSelectedBackend(e.target.value);
+                if (e.target.value === 'mysql' && mysqlStatus === 'connected') {
+                  loadMasterData();
+                }
+              }}
+            />
+            <span>🗄️ MySQL Database</span>
+            <span style={{ 
+              fontSize: '0.8rem', 
+              color: mysqlStatus === 'connected' ? '#28a745' : '#dc3545',
+              marginLeft: '5px'
+            }}>
+              ({mysqlStatus === 'connected' ? '✅ Connected' : '❌ Disconnected'})
+            </span>
+          </label>
+          <button 
+            type="button" 
+            onClick={checkMysqlStatus}
+            style={{
+              padding: '4px 8px', 
+              fontSize: '0.7rem', 
+              backgroundColor: '#6c757d', 
+              color: 'white',
+              border: 'none', 
+              borderRadius: '3px', 
+              cursor: 'pointer'
+            }}
+          >
+            🔄 Refresh
+          </button>
         </div>
       </div>
 
@@ -596,6 +837,51 @@ const App = () => {
           {statusMessage}
         </div>
       )}
+
+          </div>
+        );
+      
+      case 'data-viewer':
+        return <DataViewer selectedBackend={selectedBackend} />;
+      
+      case 'master-data':
+        return (
+          <MasterDataManager 
+            selectedBackend={selectedBackend} 
+            onDataUpdated={loadMasterData}
+          />
+        );
+      
+      case 'reports':
+        return <Reports selectedBackend={selectedBackend} />;
+      
+      case 'settings':
+        return (
+          <Settings 
+            selectedBackend={selectedBackend}
+            setSelectedBackend={setSelectedBackend}
+            mysqlStatus={mysqlStatus}
+            checkMysqlStatus={checkMysqlStatus}
+          />
+        );
+      
+      default:
+        return <div>Section not found</div>;
+    }
+  };
+
+  return (
+    <div style={{ minHeight: '100vh', backgroundColor: '#f4f4f4' }}>
+      <Navigation 
+        activeSection={activeSection}
+        setActiveSection={setActiveSection}
+        selectedBackend={selectedBackend}
+        mysqlStatus={mysqlStatus}
+      />
+      
+      <div className="container">
+        {renderActiveSection()}
+      </div>
     </div>
   );
 };
