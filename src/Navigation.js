@@ -8,6 +8,12 @@ const Navigation = ({ activeSection, setActiveSection, selectedBackend, mysqlSta
       description: 'Submit new work status entries'
     },
     {
+      id: 'projects',
+      label: '📁 Projects',
+      description: 'Manage projects and project hierarchy',
+      requiresMySQL: true
+    },
+    {
       id: 'data-viewer',
       label: '📊 Data Viewer',
       description: 'View and manage submitted entries',
