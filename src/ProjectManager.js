@@ -20,6 +20,40 @@ const ProjectManager = () => {
 
   const API_BASE = 'http://localhost:3002/api';
 
+  // Test data for quick form filling
+  const getTestProjectData = () => ({
+    name: 'E-Commerce Platform Redesign',
+    description: 'Complete redesign of the e-commerce platform with modern UI/UX, improved performance, and mobile-first approach. Includes user authentication, product catalog, shopping cart, payment integration, and admin dashboard.',
+    project_key: 'ECOM',
+    status: 'active',
+    priority: 'high',
+    start_date: new Date().toISOString().split('T')[0],
+    due_date: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 90 days from now
+    estimated_hours: '320',
+    budget: '75000'
+  });
+
+  const loadTestValues = () => {
+    const testData = getTestProjectData();
+    setFormData(testData);
+    setError('');
+  };
+
+  const clearFormData = () => {
+    setFormData({
+      name: '',
+      description: '',
+      project_key: '',
+      status: 'planning',
+      priority: 'medium',
+      start_date: '',
+      due_date: '',
+      estimated_hours: '',
+      budget: ''
+    });
+    setError('');
+  };
+
   useEffect(() => {
     loadProjects();
   }, []);
@@ -416,35 +450,74 @@ const ProjectManager = () => {
               />
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
-              <button
-                type="submit"
-                disabled={loading}
-                style={{
-                  backgroundColor: loading ? '#ccc' : '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  padding: '10px 20px',
-                  borderRadius: '5px',
-                  cursor: loading ? 'not-allowed' : 'pointer'
-                }}
-              >
-                {loading ? 'Saving...' : (selectedProject ? 'Update Project' : 'Create Project')}
-              </button>
-              <button
-                type="button"
-                onClick={cancelEdit}
-                style={{
-                  backgroundColor: '#6c757d',
-                  color: 'white',
-                  border: 'none',
-                  padding: '10px 20px',
-                  borderRadius: '5px',
-                  cursor: 'pointer'
-                }}
-              >
-                Cancel
-              </button>
+            <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'space-between', alignItems: 'center' }}>
+              {/* Test Buttons */}
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={loadTestValues}
+                  disabled={loading}
+                  style={{
+                    backgroundColor: loading ? '#ccc' : '#17a2b8',
+                    color: 'white',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  📝 Load Test Values
+                </button>
+                <button
+                  type="button"
+                  onClick={clearFormData}
+                  disabled={loading}
+                  style={{
+                    backgroundColor: loading ? '#ccc' : '#ffc107',
+                    color: '#212529',
+                    border: 'none',
+                    padding: '8px 16px',
+                    borderRadius: '4px',
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    fontSize: '12px'
+                  }}
+                >
+                  🗑️ Clear Form
+                </button>
+              </div>
+
+              {/* Main Actions */}
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <button
+                  type="button"
+                  onClick={cancelEdit}
+                  style={{
+                    backgroundColor: '#6c757d',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '5px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={loading}
+                  style={{
+                    backgroundColor: loading ? '#ccc' : '#28a745',
+                    color: 'white',
+                    border: 'none',
+                    padding: '10px 20px',
+                    borderRadius: '5px',
+                    cursor: loading ? 'not-allowed' : 'pointer'
+                  }}
+                >
+                  {loading ? 'Saving...' : (selectedProject ? 'Update Project' : 'Create Project')}
+                </button>
+              </div>
             </div>
           </form>
         </div>

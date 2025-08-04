@@ -6,6 +6,7 @@ import MasterDataManager from './MasterDataManager';
 import Reports from './Reports';
 import Settings from './Settings';
 import ProjectManager from './ProjectManager';
+import TaskManager from './components/TaskManager/TaskManager';
 
 // Backend URLs
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby7DNtVHS4FcuktaaWxPlc8HUbX4X7WldtFqpjeYD6l__Ikxq3QCe1zOJ1B4nmyX3XrWg/exec';
@@ -844,6 +845,9 @@ const App = () => {
 
       case 'projects':
         return <ProjectManager />;
+
+      case 'tasks':
+        return <TaskManager />;
 
       case 'data-viewer':
         return <DataViewer selectedBackend={selectedBackend} />;

@@ -14,6 +14,12 @@ const Navigation = ({ activeSection, setActiveSection, selectedBackend, mysqlSta
       requiresMySQL: true
     },
     {
+      id: 'tasks',
+      label: '📋 Tasks',
+      description: 'Manage tasks with Kanban boards and advanced features',
+      requiresMySQL: true
+    },
+    {
       id: 'data-viewer',
       label: '📊 Data Viewer',
       description: 'View and manage submitted entries',
