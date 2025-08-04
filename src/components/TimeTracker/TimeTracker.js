@@ -150,7 +150,8 @@ const TimeTracker = ({ taskId, onTimeLogged }) => {
         display: 'flex',
         gap: '8px',
         justifyContent: 'center',
-        marginBottom: '20px'
+        marginBottom: '20px',
+        flexWrap: 'wrap'
       }}>
         {!isRunning ? (
           <button
@@ -320,7 +321,8 @@ const TimeTracker = ({ taskId, onTimeLogged }) => {
         <div style={{
           display: 'flex',
           gap: '6px',
-          flexWrap: 'wrap'
+          flexWrap: 'wrap',
+          justifyContent: 'center'
         }}>
           {[0.25, 0.5, 1, 2, 4, 8].map(hours => (
             <button

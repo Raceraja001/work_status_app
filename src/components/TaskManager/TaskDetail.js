@@ -138,11 +138,13 @@ const TaskDetail = ({ taskId, onClose, onTaskUpdated }) => {
       <div style={{
         backgroundColor: 'white',
         borderRadius: '8px',
-        maxWidth: '1000px',
-        width: '100%',
+        maxWidth: '1200px',
+        width: '95%',
         maxHeight: '90vh',
-        overflow: 'auto',
-        position: 'relative'
+        overflow: 'hidden',
+        position: 'relative',
+        display: 'flex',
+        flexDirection: 'column'
       }}>
         {/* Header */}
         <div style={{
@@ -195,10 +197,10 @@ const TaskDetail = ({ taskId, onClose, onTaskUpdated }) => {
 
         {/* Content */}
         <div style={{
-          display: 'grid',
-          gridTemplateColumns: '2fr 1fr',
-          gap: '20px',
-          padding: '20px'
+          display: 'block',
+          padding: '20px',
+          overflow: 'auto',
+          flex: 1
         }}>
           {/* Left Column - Main Content */}
           <div>

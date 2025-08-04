@@ -156,11 +156,13 @@ const TaskForm = ({ task, projects, onSubmit, onCancel, isLoading }) => {
   return (
     <div style={{
       backgroundColor: 'white',
-      padding: '24px',
+      padding: '20px',
       borderRadius: '8px',
       boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-      maxWidth: '800px',
-      margin: '0 auto'
+      maxWidth: '900px',
+      width: '100%',
+      margin: '0 auto',
+      boxSizing: 'border-box'
     }}>
       <h3 style={{ margin: '0 0 20px 0', color: '#333' }}>
         {task ? 'Edit Task' : 'Create New Task'}
@@ -169,9 +171,9 @@ const TaskForm = ({ task, projects, onSubmit, onCancel, isLoading }) => {
       <form onSubmit={handleSubmit}>
         <div style={{ 
           display: 'grid', 
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
-          gap: '16px',
-          marginBottom: '20px'
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', 
+          gap: '20px',
+          marginBottom: '24px'
         }}>
           {/* Title */}
           <div style={{ gridColumn: '1 / -1' }}>
@@ -489,45 +491,61 @@ const TaskForm = ({ task, projects, onSubmit, onCancel, isLoading }) => {
         </div>
 
         {/* Form Actions */}
-        <div style={{ display: 'flex', gap: '12px', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column',
+          gap: '12px',
+          alignItems: 'center'
+        }}>
           {/* Test Buttons */}
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: '8px',
+            flexWrap: 'wrap',
+            justifyContent: 'center'
+          }}>
             <button
               type="button"
               onClick={loadTestValues}
               disabled={isLoading}
               style={{
-                padding: '8px 16px',
+                padding: '8px 12px',
                 backgroundColor: isLoading ? '#ccc' : '#17a2b8',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
-                fontSize: '12px'
+                fontSize: '11px',
+                whiteSpace: 'nowrap'
               }}
             >
-              📝 Load Test Values
+              📝 Test Values
             </button>
             <button
               type="button"
               onClick={clearFormData}
               disabled={isLoading}
               style={{
-                padding: '8px 16px',
+                padding: '8px 12px',
                 backgroundColor: isLoading ? '#ccc' : '#ffc107',
                 color: '#212529',
                 border: 'none',
                 borderRadius: '4px',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
-                fontSize: '12px'
+                fontSize: '11px',
+                whiteSpace: 'nowrap'
               }}
             >
-              🗑️ Clear Form
+              🗑️ Clear
             </button>
           </div>
 
           {/* Main Actions */}
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div style={{ 
+            display: 'flex', 
+            gap: '12px',
+            justifyContent: 'center'
+          }}>
             <button
               type="button"
               onClick={onCancel}
@@ -538,7 +556,8 @@ const TaskForm = ({ task, projects, onSubmit, onCancel, isLoading }) => {
                 border: 'none',
                 borderRadius: '4px',
                 cursor: 'pointer',
-                fontSize: '14px'
+                fontSize: '14px',
+                minWidth: '80px'
               }}
             >
               Cancel
@@ -553,7 +572,8 @@ const TaskForm = ({ task, projects, onSubmit, onCancel, isLoading }) => {
                 border: 'none',
                 borderRadius: '4px',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
-                fontSize: '14px'
+                fontSize: '14px',
+                minWidth: '120px'
               }}
             >
               {isLoading ? 'Saving...' : (task ? 'Update Task' : 'Create Task')}

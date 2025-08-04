@@ -214,7 +214,11 @@ const ProjectManager = () => {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ 
+      padding: '16px',
+      maxWidth: '100%',
+      boxSizing: 'border-box'
+    }}>
       <div style={{ 
         display: 'flex', 
         justifyContent: 'space-between', 
@@ -450,9 +454,19 @@ const ProjectManager = () => {
               />
             </div>
 
-            <div style={{ display: 'flex', gap: '10px', marginTop: '20px', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ 
+              display: 'flex', 
+              flexDirection: 'column',
+              gap: '12px', 
+              marginTop: '24px'
+            }}>
               {/* Test Buttons */}
-              <div style={{ display: 'flex', gap: '8px' }}>
+              <div style={{ 
+                display: 'flex', 
+                gap: '8px',
+                justifyContent: 'center',
+                flexWrap: 'wrap'
+              }}>
                 <button
                   type="button"
                   onClick={loadTestValues}
@@ -461,13 +475,14 @@ const ProjectManager = () => {
                     backgroundColor: loading ? '#ccc' : '#17a2b8',
                     color: 'white',
                     border: 'none',
-                    padding: '8px 16px',
+                    padding: '8px 12px',
                     borderRadius: '4px',
                     cursor: loading ? 'not-allowed' : 'pointer',
-                    fontSize: '12px'
+                    fontSize: '11px',
+                    whiteSpace: 'nowrap'
                   }}
                 >
-                  📝 Load Test Values
+                  📝 Test Values
                 </button>
                 <button
                   type="button"
@@ -477,18 +492,23 @@ const ProjectManager = () => {
                     backgroundColor: loading ? '#ccc' : '#ffc107',
                     color: '#212529',
                     border: 'none',
-                    padding: '8px 16px',
+                    padding: '8px 12px',
                     borderRadius: '4px',
                     cursor: loading ? 'not-allowed' : 'pointer',
-                    fontSize: '12px'
+                    fontSize: '11px',
+                    whiteSpace: 'nowrap'
                   }}
                 >
-                  🗑️ Clear Form
+                  🗑️ Clear
                 </button>
               </div>
 
               {/* Main Actions */}
-              <div style={{ display: 'flex', gap: '10px' }}>
+              <div style={{ 
+                display: 'flex', 
+                gap: '12px',
+                justifyContent: 'center'
+              }}>
                 <button
                   type="button"
                   onClick={cancelEdit}
@@ -498,7 +518,8 @@ const ProjectManager = () => {
                     border: 'none',
                     padding: '10px 20px',
                     borderRadius: '5px',
-                    cursor: 'pointer'
+                    cursor: 'pointer',
+                    minWidth: '80px'
                   }}
                 >
                   Cancel
@@ -512,7 +533,8 @@ const ProjectManager = () => {
                     border: 'none',
                     padding: '10px 20px',
                     borderRadius: '5px',
-                    cursor: loading ? 'not-allowed' : 'pointer'
+                    cursor: loading ? 'not-allowed' : 'pointer',
+                    minWidth: '120px'
                   }}
                 >
                   {loading ? 'Saving...' : (selectedProject ? 'Update Project' : 'Create Project')}
@@ -532,8 +554,9 @@ const ProjectManager = () => {
 
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))', 
-        gap: '20px' 
+        gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
+        gap: '24px',
+        padding: '4px'
       }}>
         {projects.map(project => (
           <div

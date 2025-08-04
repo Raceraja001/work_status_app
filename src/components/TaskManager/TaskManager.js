@@ -140,8 +140,8 @@ const TaskManager = () => {
     }}>
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
-        gap: '12px',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', 
+        gap: '16px',
         alignItems: 'end'
       }}>
         <div>
@@ -236,7 +236,7 @@ const TaskManager = () => {
           </select>
         </div>
 
-        <div>
+        <div style={{ display: 'flex', alignItems: 'end' }}>
           <button
             onClick={clearFilters}
             style={{
@@ -246,7 +246,9 @@ const TaskManager = () => {
               border: 'none',
               borderRadius: '4px',
               cursor: 'pointer',
-              fontSize: '14px'
+              fontSize: '14px',
+              whiteSpace: 'nowrap',
+              height: 'fit-content'
             }}
           >
             Clear Filters
@@ -267,8 +269,9 @@ const TaskManager = () => {
       <h4 style={{ margin: '0 0 12px 0', color: '#333' }}>Task Statistics</h4>
       <div style={{ 
         display: 'grid', 
-        gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', 
-        gap: '12px'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(100px, 1fr))', 
+        gap: '16px',
+        textAlign: 'center'
       }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '24px', fontWeight: 'bold', color: '#333' }}>
@@ -307,8 +310,9 @@ const TaskManager = () => {
   const renderCardsView = () => (
     <div style={{ 
       display: 'grid', 
-      gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', 
-      gap: '16px' 
+      gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', 
+      gap: '20px',
+      padding: '4px'
     }}>
       {sortedTasks.map(task => (
         <TaskCard
@@ -375,17 +379,35 @@ const TaskManager = () => {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
+    <div style={{ 
+      padding: '16px',
+      maxWidth: '100%',
+      boxSizing: 'border-box',
+      margin: '0 auto',
+      overflow: 'hidden'
+    }}>
       {/* Header */}
       <div style={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
-        alignItems: 'center', 
-        marginBottom: '20px' 
+        marginBottom: '24px'
       }}>
-        <h1 style={{ margin: 0, color: '#333' }}>Task Management</h1>
-        <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-          <div style={{ display: 'flex', gap: '4px' }}>
+        {/* Title */}
+        <div style={{ 
+          display: 'flex',
+          justifyContent: 'center',
+          marginBottom: '16px'
+        }}>
+          <h1 style={{ margin: 0, color: '#333', fontSize: '28px' }}>Task Management</h1>
+        </div>
+        
+        {/* Controls */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '12px', 
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          justifyContent: 'center'
+        }}>
+          <div style={{ display: 'flex', gap: '0', marginRight: '8px' }}>
             <button
               onClick={() => setViewMode('cards')}
               style={{
@@ -395,7 +417,8 @@ const TaskManager = () => {
                 border: '1px solid #ddd',
                 borderRadius: '4px 0 0 4px',
                 cursor: 'pointer',
-                fontSize: '12px'
+                fontSize: '12px',
+                whiteSpace: 'nowrap'
               }}
             >
               📋 Cards
@@ -409,7 +432,8 @@ const TaskManager = () => {
                 border: '1px solid #ddd',
                 borderRadius: '0 4px 4px 0',
                 cursor: 'pointer',
-                fontSize: '12px'
+                fontSize: '12px',
+                whiteSpace: 'nowrap'
               }}
             >
               📊 Kanban
@@ -421,11 +445,12 @@ const TaskManager = () => {
               backgroundColor: '#28a745',
               color: 'white',
               border: 'none',
-              padding: '10px 20px',
+              padding: '10px 16px',
               borderRadius: '5px',
               cursor: 'pointer',
               fontSize: '14px',
-              fontWeight: 'bold'
+              fontWeight: 'bold',
+              whiteSpace: 'nowrap'
             }}
           >
             ➕ Create Task
